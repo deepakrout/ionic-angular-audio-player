@@ -1,0 +1,13 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Audio Player Demo</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <app-audio-player
+    *ngFor="let audio of audioList"
+    [audio]="audio"
+    style="display:block; margin-bottom: 1rem;">
+  </app-audio-player>
+</ion-content>

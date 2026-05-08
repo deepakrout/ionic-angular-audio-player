@@ -1,0 +1,141 @@
+<div class="ap-shell" [class.ap-shell--playing]="isPlaying">
+
+  <header class="ap-header">
+    <div class="ap-waveform" aria-hidden="true">
+      <span *ngFor="let b of waveformBars; let i = index" class="ap-waveform__bar"
+        [style.height.px]="b"
+        [style.animation-delay]="isPlaying ? (barDelays[i] + 'ms') : '0ms'"
+        [class.ap-waveform__bar--active]="isPlaying">
+      </span>
+    </div>
+    <div class="ap-header__text">
+      <h2 class="ap-title">{{ audio.Title }}</h2>
+      <p class="ap-subtitle" *ngIf="audio.SubTitle">{{ audio.SubTitle }}</p>
+    </div>
+  </header>
+
+  <div class="ap-native-wrap">
+    <audio
+      #audioEl
+      [id]="'audio-' + audio.Id"
+      (timeupdate)="onTimeUpdate()"
+      (play)="onPlay()"
+      (pause)="onPause()"
+      (ended)="onEnded()"
+      (loadedmetadata)="onLoaded()"
+      oncontextmenu="return false;"
+      controlsList="nodownload"
+      [attr.aria-label]="audio.Title">
+      <source [src]="audio.AudioURL" type="audio/mpeg">
+      <track
+        *ngIf="audio.CaptionURL"
+        kind="captions"
+        [src]="audio.CaptionURL"
+        [srclang]="audio.CaptionLang ?? 'en'"
+        [label]="audio.CaptionLabel ?? 'English'"
+        default>
+      Your browser does not support the audio element.
+    </audio>
+  </div>
+
+  <div class="ap-controls" role="group" [attr.aria-label]="'Controls for ' + audio.Title">
+
+    <div class="ap-progress">
+      <span class="ap-time ap-time--current">{{ formatTime(currentTime) }}</span>
+      <div class="ap-progress__track"
+        role="slider"
+        [attr.aria-valuemin]="0"
+        [attr.aria-valuemax]="duration"
+        [attr.aria-valuenow]="currentTime"
+        [attr.aria-valuetext]="formatTime(currentTime) + ' of ' + formatTime(duration)"
+        tabindex="0"
+        (click)="seek($event)"
+        (keydown)="onProgressKey($event)">
+        <div class="ap-progress__fill" [style.width.%]="progressPct"></div>
+        <div class="ap-progress__thumb" [style.left.%]="progressPct"></div>
+      </div>
+      <span class="ap-time ap-time--total">{{ formatTime(duration) }}</span>
+    </div>
+
+    <div class="ap-btn-row">
+
+      <button class="ap-btn ap-btn--skip" (click)="skip(-10)" aria-label="Skip back 10 seconds">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"></polyline>
+          <path d="M3.51 15a9 9 0 1 0 .49-3.78"></path>
+          <text x="7" y="16" font-size="6" stroke="none" fill="currentColor" font-family="sans-serif">10</text>
+        </svg>
+      </button>
+
+      <button class="ap-btn ap-btn--play" (click)="togglePlay()" [attr.aria-label]="isPlaying ? 'Pause' : 'Play'">
+        <svg *ngIf="!isPlaying" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"></polygon></svg>
+        <svg *ngIf="isPlaying" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="6" y="4" width="4" height="16"></rect>
+          <rect x="14" y="4" width="4" height="16"></rect>
+        </svg>
+      </button>
+
+      <button class="ap-btn ap-btn--skip" (click)="skip(10)" aria-label="Skip forward 10 seconds">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <path d="M20.49 15a9 9 0 1 1-.49-3.78"></path>
+          <text x="7" y="16" font-size="6" stroke="none" fill="currentColor" font-family="sans-serif">10</text>
+        </svg>
+      </button>
+
+      <button class="ap-btn ap-btn--speed" (click)="cycleSpeed()" [attr.aria-label]="'Playback speed: ' + playbackSpeed + 'x'">
+        {{ playbackSpeed }}×
+      </button>
+
+      <button class="ap-btn ap-btn--transcript"
+        *ngIf="audio.Segments?.length"
+        (click)="toggleTranscript()"
+        [class.ap-btn--transcript-open]="showTranscript"
+        [attr.aria-expanded]="showTranscript"
+        [attr.aria-controls]="'transcript-panel-' + audio.Id"
+        [attr.aria-label]="showTranscript ? 'Hide transcript' : 'Show transcript'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+      </button>
+
+    </div>
+  </div>
+
+  <div
+    *ngIf="showTranscript && audio.Segments?.length"
+    class="ap-transcript"
+    [id]="'transcript-panel-' + audio.Id"
+    aria-live="polite"
+    [attr.aria-label]="'Transcript for ' + audio.Title">
+
+    <div class="ap-transcript__header">
+      <span class="ap-transcript__label">Transcript</span>
+      <button class="ap-transcript__close" (click)="toggleTranscript()" aria-label="Close transcript">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="ap-transcript__scroll" #transcriptScroll>
+      <p
+        *ngFor="let seg of audio.Segments; let i = index"
+        class="ap-transcript__seg"
+        [class.ap-transcript__seg--active]="i === activeSegIndex"
+        [class.ap-transcript__seg--past]="i < activeSegIndex"
+        [id]="'seg-' + audio.Id + '-' + i"
+        (click)="seekToSegment(seg)">
+        <span class="ap-transcript__ts">{{ seg.start_time | slice:3:8 }}</span>
+        <span class="ap-transcript__text">{{ seg.text }}</span>
+      </p>
+    </div>
+
+  </div>
+
+</div>
